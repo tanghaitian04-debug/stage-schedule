@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f4f0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>每日工作安排 · 排班生成</title>
+<style>
+:root{
+  --paper:#f5f4f0; --surface:#fff; --surface-2:#edece7;
+  --ink:#191b1e; --ink-2:#4c5157; --ink-3:#8b9096;
+  --line:#e1dfd7; --line-2:#cfccc2;
+  --accent:#c0451d; --accent-bg:#fbf0ea; --danger:#a93428;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  color:var(--ink); background:var(--paper); color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper)}
+button{font:inherit;cursor:pointer;touch-action:manipulation}
+.app{max-width:640px;margin:auto;padding:calc(14px + env(safe-area-inset-top)) 18px calc(96px + env(safe-area-inset-bottom))}
+header{padding-bottom:11px;border-bottom:4px double var(--ink)}
+.eyebrow{display:flex;justify-content:space-between;font-size:10px;font-weight:600;letter-spacing:2.5px;color:var(--ink-3)}
+.title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:9px}
+h1{font-family:"Songti SC","STSongti-SC-Regular","Noto Serif SC",serif;font-size:21px;font-weight:600;margin:0;white-space:nowrap}
+#date-line{font-size:15px;font-weight:650;color:var(--accent);white-space:nowrap}
+.meta{font-size:11.5px;color:var(--ink-3);margin-top:7px;line-height:1.7}
+.status{display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px}
+#progress{font-size:12.5px;color:var(--ink-2);letter-spacing:.5px}
+#btn-clear{border:0;background:none;color:var(--ink-3);font-size:12px;padding:6px 2px}
+#warn{font-size:12px;color:var(--danger);min-height:18px;line-height:1.6}
+#list{display:flex;flex-direction:column}
+.person{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:none;border:0;border-bottom:1px solid var(--line);
+  padding:11px 2px;min-height:52px;color:var(--ink);
+}
+.person:active{background:var(--surface-2)}
+.person.flash{background:var(--accent-bg)}
+.person .idx{font-size:11px;color:var(--ink-3);min-width:19px;font-variant-numeric:tabular-nums}
+.person .pname{font-size:16.5px;font-weight:600;letter-spacing:.5px}
+.person .chip{margin-left:auto;font-size:12.5px;font-weight:600;background:var(--ink);color:#fff;border-radius:999px;padding:5px 12px}
+.person .chip.none{background:none;color:var(--ink-3);border:1px dashed var(--line-2);font-weight:500}
+.person .chip.dup{background:var(--danger)}
+.person .chev{color:var(--ink-3);font-size:18px}
+#preview-wrap{display:none;margin-top:22px;border-top:1px solid var(--ink);padding-top:14px}
+#preview-wrap.show{display:block}
+#preview-wrap h2{font-size:15px;margin:0 0 4px}
+#miss{font-size:12px;color:var(--accent);line-height:1.7;min-height:20px}
+#preview{
+  white-space:pre-wrap;word-break:break-word;background:var(--surface);
+  border:1px solid var(--line-2);border-radius:12px;padding:15px 14px;
+  font-size:13.5px;line-height:1.75;color:var(--ink);margin:8px 0 0;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+}
+.actionbar{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:640px;z-index:10;
+  display:flex;gap:9px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.97);border-top:1px solid var(--line-2);
+}
+.actionbar button{flex:1;min-height:50px;border-radius:12px;font-size:15.5px;font-weight:650;border:1px solid var(--line-2);background:var(--surface);color:var(--ink)}
+.actionbar button:active{transform:scale(.985)}
+#btn-generate{background:var(--ink);border-color:var(--ink);color:#fff;flex:1.25}
+#sheet{position:fixed;inset:0;background:rgba(25,27,30,.45);z-index:30;display:none;align-items:flex-end;justify-content:center}
+#sheet.open{display:flex}
+.sheet-panel{background:var(--surface);width:100%;max-width:640px;border-radius:18px 18px 0 0;padding:18px 18px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(25,27,30,.25)}
+.sheet-panel h3{margin:0;font-size:19px}
+.sheet-panel .sub{font-size:12px;color:var(--ink-3);margin:5px 0 14px}
+#chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#chips .pos{min-height:47px;border:1px solid var(--line-2);background:var(--surface);border-radius:10px;font-size:14.5px;font-weight:600;color:var(--ink);padding:6px 2px}
+#chips .pos.active{background:var(--ink);border-color:var(--ink);color:#fff}
+#chips .pos.taken{color:var(--ink-3);font-size:12.5px}
+.sheet-actions{display:flex;gap:9px;margin-top:14px}
+.sheet-actions button{flex:1;min-height:46px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);font-size:14px;font-weight:600}
+#sheet-clear{color:var(--danger)}
+#toast{
+  position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-8px);z-index:40;
+  background:var(--ink);color:#fff;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:550;
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;white-space:nowrap;box-shadow:0 6px 24px rgba(25,27,30,.25);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow"><span>每日排班</span><span>V1.0</span></div>
+    <div class="title-row"><h1>舞台技师工作安排</h1><span id="date-line"></span></div>
+    <p class="meta">对照经理班表，点人名选岗位；选完点「生成文案」，再点「复制」发到微信群。日期按当天自动生成，不用手改。</p>
+  </header>
+
+  <div class="status"><span id="progress"></span><button id="btn-clear">清空重选</button></div>
+  <div id="warn"></div>
+  <div id="list"></div>
+
+  <section id="preview-wrap">
+    <h2>生成文案</h2>
+    <div id="miss"></div>
+    <pre id="preview"></pre>
+  </section>
+</div>
+
+<div class="actionbar">
+  <button id="btn-generate">生成文案</button>
+  <button id="btn-copy">复制</button>
+</div>
+
+<div id="sheet" role="dialog" aria-modal="true">
+  <div class="sheet-panel">
+    <h3 id="sheet-name"></h3>
+    <p class="sub">点一下今天的岗位（已有人选的岗位也能改派，文案里会并排显示）</p>
+    <div id="chips"></div>
+    <div class="sheet-actions">
+      <button id="sheet-clear">不安排 / 清除</button>
+      <button id="sheet-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="./app.js"></script>
+</body>
+</html>
